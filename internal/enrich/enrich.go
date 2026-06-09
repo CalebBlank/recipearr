@@ -233,7 +233,8 @@ func CommunizeIngredient(food, unit string, aliases map[string]string) (newFood,
 		unit = ""
 	}
 	clean, extra := cleanFoodName(food)
-	return strings.TrimSpace(communize(clean, aliases)), unit, extra
+	// Lowercase to match the import path (collapses "Powdered sugar"/"powdered sugar" into one food).
+	return strings.ToLower(strings.TrimSpace(communize(clean, aliases))), unit, extra
 }
 
 func communize(name string, aliases map[string]string) string {

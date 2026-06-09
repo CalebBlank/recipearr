@@ -146,6 +146,17 @@
         <label><input type="checkbox" id="opt-books"> Add each imported recipe to a Tandoor Recipe Book named after its source (e.g. &quot;Serious Eats&quot;)</label>
         <div class="row" style="margin-top:12px"><button class="btn" onclick="App.saveSettings()">Save</button></div>
       </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Refresh existing recipes</h3>
+        <p class="muted" style="margin-top:0">Re-run the current ingredient allocation + cleanup on recipes already in your Tandoor library. Each recipe is <strong>backed up</strong> before any change. Recipes with ingredient sections ("For the dressing", etc.) are <strong>skipped</strong> &mdash; their original order is lost once stored, so they'd be mis-grouped; re-import those instead.</p>
+        <div class="row">
+          <button class="btn secondary" onclick="App.reprocessScan()">Scan library</button>
+          <button class="btn" id="repro-apply" onclick="App.reprocessApply()" disabled>Apply fixes</button>
+          <span id="repro-status" class="muted"></span>
+        </div>
+        <div id="repro-results" style="margin-top:12px"></div>
+      </div>
     </section>
   </main>
 

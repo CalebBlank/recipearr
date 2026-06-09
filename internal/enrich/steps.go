@@ -7,17 +7,105 @@ import (
 	"recipearr/internal/tandoor"
 )
 
-// allocateIngredients redistributes pooled ingredients (scrapers dump them all in one block) onto
-// the instruction steps that use them. It is component-aware: ingredient-list section headers
-// ("For the salad:", "Cilantro Lime Dressing:", "To garnish") are detected, dropped, and used to
-// group the ingredients that follow — so ambiguous members (a second "cilantro", a "vegan butter"
-// used twice) are biased toward where the rest of their component lands. Heuristic; toggleable.
+// Ing is the minimal ingredient view the allocator needs. It's the shared input for both the
+// import path (built from the parsed pool) and the library reprocessor (built from stored recipe
+// JSON), so allocation logic lives in exactly one place.
+type Ing struct {
+	Food         string
+	OriginalText string
+	Note         string
+	IsHeader     bool // already flagged a header (trusted); otherwise header detection applies
+}
+
+// AssignSteps decides which instruction step each ingredient in a flat, original-order pool belongs
+// to. Returns stepOf[i] = the step index for pool[i], or -1 if pool[i] is a section header (the
+// caller decides whether to drop it or keep it as a divider). Component-aware: section headers
+// ("For the salad:", "To garnish") group the ingredients that follow, ambiguous members are biased
+// to their component's cluster step, and same-named duplicates are split by their modifier words.
+func AssignSteps(pool []Ing, instructions []string) []int {
+	stepOf := make([]int, len(pool))
+	if len(pool) == 0 {
+		return stepOf
+	}
+	if len(instructions) == 0 {
+		for i := range pool {
+			if isHeaderIng(pool[i]) {
+				stepOf[i] = -1
+			}
+		}
+		return stepOf
+	}
+
+	lowerSteps := make([]string, len(instructions))
+	for i := range instructions {
+		lowerSteps[i] = strings.ToLower(instructions[i])
+	}
+
+	// Parse components: mark headers (-1) and group the ingredients that follow each one.
+	var keptIdx []int  // pool indices that are real ingredients
+	var groups [][]int // each group is a list of positions into keptIdx
+	cur := -1
+	ensure := func() {
+		if cur < 0 {
+			groups = append(groups, nil)
+			cur = len(groups) - 1
+		}
+	}
+	for pi := range pool {
+		if isHeaderIng(pool[pi]) {
+			stepOf[pi] = -1
+			groups = append(groups, nil)
+			cur = len(groups) - 1
+			continue
+		}
+		ensure()
+		groups[cur] = append(groups[cur], len(keptIdx))
+		keptIdx = append(keptIdx, pi)
+	}
+	if len(keptIdx) == 0 {
+		return stepOf
+	}
+
+	candidates := make([][]int, len(keptIdx))
+	for k, pi := range keptIdx {
+		candidates[k] = matchSteps(strings.ToLower(pool[pi].Food), lowerSteps)
+	}
+
+	placed := make([]int, len(keptIdx))
+	for i := range placed {
+		placed[i] = -1
+	}
+	for _, g := range groups {
+		home := componentHome(g, candidates)
+		for _, ki := range g {
+			switch cand := candidates[ki]; {
+			case len(cand) == 1:
+				placed[ki] = cand[0]
+			case len(cand) > 1:
+				placed[ki] = pickNearHome(cand, home)
+			default:
+				placed[ki] = home
+			}
+		}
+		spreadDuplicates(g, keptIdx, pool, lowerSteps, placed)
+	}
+
+	for k, pi := range keptIdx {
+		if s := placed[k]; s >= 0 && s < len(instructions) {
+			stepOf[pi] = s
+		} else {
+			stepOf[pi] = 0 // unmatched -> first step
+		}
+	}
+	return stepOf
+}
+
+// allocateIngredients (import path) redistributes pooled ingredients onto the steps that use them,
+// dropping section-header pseudo-ingredients. Thin wrapper over AssignSteps.
 func allocateIngredients(steps []tandoor.StepCreate) []tandoor.StepCreate {
 	if len(steps) == 0 {
 		return steps
 	}
-
-	// Pull every ingredient into a single ordered pool; clear the per-step lists.
 	var pool []tandoor.IngredientCreate
 	for i := range steps {
 		pool = append(pool, steps[i].Ingredients...)
@@ -27,72 +115,23 @@ func allocateIngredients(steps []tandoor.StepCreate) []tandoor.StepCreate {
 		return steps
 	}
 
-	lowerSteps := make([]string, len(steps))
+	ings := make([]Ing, len(pool))
+	instr := make([]string, len(steps))
 	for i := range steps {
-		lowerSteps[i] = strings.ToLower(steps[i].Instruction)
+		instr[i] = steps[i].Instruction
 	}
+	for i, ic := range pool {
+		hdr := ic.Amount == 0 && ic.Unit == nil && DetectHeader(ic.Food.Name, ic.OriginalText)
+		ings[i] = Ing{Food: ic.Food.Name, OriginalText: ic.OriginalText, Note: ic.Note, IsHeader: hdr}
+	}
+	stepOf := AssignSteps(ings, instr)
 
-	// --- parse components: drop header lines, group the ingredients that follow each header ---
-	var kept []tandoor.IngredientCreate
-	var groups [][]int // each is a list of indices into kept (a component, or the leading "" group)
-	cur := -1
-	ensure := func() {
-		if cur < 0 {
-			groups = append(groups, nil)
-			cur = len(groups) - 1
-		}
-	}
-	for _, ing := range pool {
-		if isHeaderIngredient(ing) {
-			groups = append(groups, nil)
-			cur = len(groups) - 1
-			continue // drop the header pseudo-ingredient itself
-		}
-		ensure()
-		kept = append(kept, ing)
-		groups[cur] = append(groups[cur], len(kept)-1)
-	}
-	if len(kept) == 0 {
-		return steps
-	}
-
-	// --- per-ingredient candidate steps, by the longest matching phrase ---
-	candidates := make([][]int, len(kept))
-	for i := range kept {
-		candidates[i] = matchSteps(strings.ToLower(kept[i].Food.Name), lowerSteps)
-	}
-
-	placed := make([]int, len(kept))
-	for i := range placed {
-		placed[i] = -1
-	}
-
-	for _, g := range groups {
-		home := componentHome(g, candidates) // mode of unambiguous matches in this component; -1 if none
-		for _, ki := range g {
-			switch cand := candidates[ki]; {
-			case len(cand) == 1:
-				placed[ki] = cand[0]
-			case len(cand) > 1:
-				placed[ki] = pickNearHome(cand, home)
-			default:
-				placed[ki] = home // unmatched -> component's home step (may be -1)
-			}
-		}
-		spreadDuplicates(g, kept, lowerSteps, placed) // two "vegan butter" -> different butter steps
-	}
-
-	// --- write back; anything still unplaced leads the first step so nothing is lost ---
 	assigned := make([][]tandoor.IngredientCreate, len(steps))
-	var unmatched []tandoor.IngredientCreate
-	for ki := range kept {
-		if s := placed[ki]; s >= 0 && s < len(steps) {
-			assigned[s] = append(assigned[s], kept[ki])
-		} else {
-			unmatched = append(unmatched, kept[ki])
+	for i, ic := range pool {
+		if s := stepOf[i]; s >= 0 { // s == -1 means header -> dropped on import
+			assigned[s] = append(assigned[s], ic)
 		}
 	}
-	assigned[0] = append(unmatched, assigned[0]...)
 	for i := range steps {
 		steps[i].Ingredients = assigned[i]
 		steps[i].ShowIngredientsTable = true
@@ -100,20 +139,22 @@ func allocateIngredients(steps []tandoor.StepCreate) []tandoor.StepCreate {
 	return steps
 }
 
-// isHeaderIngredient reports whether a pooled ingredient is really a section header ("For the
-// salad:", "To garnish") rather than a food. Headers have no amount/unit and either end their
-// original text with a colon or read like a section label ("for …", "to garnish/serve").
-func isHeaderIngredient(ing tandoor.IngredientCreate) bool {
-	if ing.Amount != 0 || ing.Unit != nil {
-		return false
-	}
-	ot := strings.TrimSpace(ing.OriginalText)
+// isHeaderIng trusts the caller's IsHeader flag — the caller (import or reprocess) owns header
+// detection because it has the amount/unit context (and any stored is_header field) that AssignSteps
+// deliberately doesn't.
+func isHeaderIng(ing Ing) bool { return ing.IsHeader }
+
+// DetectHeader reports whether a row reads like a section header rather than a food: its original
+// text ends with ":" or starts with "for the …" / "to garnish/serve". Callers AND it with the
+// amount/unit gate (a header has no amount and no unit) and any stored is_header flag.
+func DetectHeader(food, originalText string) bool {
+	ot := strings.TrimSpace(originalText)
 	if strings.HasSuffix(ot, ":") {
 		return true
 	}
 	probe := strings.ToLower(ot)
 	if probe == "" {
-		probe = strings.ToLower(strings.TrimSpace(ing.Food.Name))
+		probe = strings.ToLower(strings.TrimSpace(food))
 	}
 	for _, p := range []string{"for the ", "for serving", "to garnish", "to serve", "to assemble", "to finish", "to top"} {
 		if strings.HasPrefix(probe, p) {
@@ -124,9 +165,8 @@ func isHeaderIngredient(ing tandoor.IngredientCreate) bool {
 }
 
 // matchSteps returns the step indices (ascending) that mention the food by its LONGEST matching
-// phrase: it tries the full name, then every contiguous sub-phrase down to single words, and
-// returns the matches for the first (longest) phrase length that hits any step. So "creamy peanut
-// butter" matches on "peanut butter" (not bare "butter"), and "feta cheese" on "feta".
+// phrase: full name, then contiguous sub-phrases down to single words. So "creamy peanut butter"
+// matches on "peanut butter" (not bare "butter"), and "feta cheese" on "feta".
 func matchSteps(food string, lowerSteps []string) []int {
 	words := strings.Fields(food)
 	for n := len(words); n >= 1; n-- {
@@ -150,7 +190,7 @@ func matchSteps(food string, lowerSteps []string) []int {
 	return nil
 }
 
-// componentHome returns the most common step among the component's UNAMBIGUOUS (single-candidate)
+// componentHome returns the most common step among a component's UNAMBIGUOUS (single-candidate)
 // ingredients — the step its members cluster on — or -1 if none are unambiguous.
 func componentHome(group []int, candidates [][]int) int {
 	count := map[int]int{}
@@ -168,8 +208,6 @@ func componentHome(group []int, candidates [][]int) int {
 	return best
 }
 
-// pickNearHome chooses, among an ingredient's candidate steps, the component home if it's a
-// candidate, else the candidate nearest the home, else the first candidate.
 func pickNearHome(cand []int, home int) int {
 	if home < 0 {
 		return cand[0]
@@ -190,15 +228,13 @@ func pickNearHome(cand []int, home int) int {
 	return best
 }
 
-// spreadDuplicates handles N identical-named ingredients in a component (e.g. melted + softened
-// "vegan butter") by distributing them across a broadened phrase's steps — but ONLY when that
-// broadened set is close to N (size N or N+1), so common staples (salt mentioned in 4 steps) are
-// left piled rather than scattered.
-func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps []string, placed []int) {
+// spreadDuplicates separates N identical-named ingredients in a component. group holds positions
+// into keptIdx; keptIdx[pos] indexes pool.
+func spreadDuplicates(group []int, keptIdx []int, pool []Ing, lowerSteps []string, placed []int) {
 	byFood := map[string][]int{}
 	var order []string
 	for _, ki := range group {
-		f := strings.ToLower(strings.TrimSpace(kept[ki].Food.Name))
+		f := strings.ToLower(strings.TrimSpace(pool[keptIdx[ki]].Food))
 		if _, ok := byFood[f]; !ok {
 			order = append(order, f)
 		}
@@ -212,23 +248,20 @@ func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps [
 		}
 
 		// (1) Modifier routing: prep words unique to each copy (from original_text, e.g. "melted"
-		// vs "softened") often name the step that uses it. If every copy's modifiers pin a DISTINCT
-		// single step, route by that — this separates two "vegan butter"s even when bare "butter"
-		// is too common to spread safely.
+		// vs "softened") name the step that uses it. Score: modifier words 2x, food words 1x.
 		foodWords := strings.Fields(f)
 		tentative := make([]int, k)
-		routed := true
-		anyMod := false
+		routed, anyMod := true, false
 		used := map[int]bool{}
 		for j, ki := range dupes {
-			mods := modifierWords(kept[ki].OriginalText, f)
+			mods := modifierWords(pool[keptIdx[ki]].OriginalText, f)
 			if len(mods) > 0 {
 				anyMod = true
 			}
 			best, bestScore := -1, 0
 			for si, ins := range lowerSteps {
 				score := 0
-				for _, w := range mods { // modifier (prep) words weigh double — they distinguish copies
+				for _, w := range mods {
 					if mentions(ins, w) {
 						score += 2
 					}
@@ -238,11 +271,11 @@ func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps [
 						score++
 					}
 				}
-				if score > bestScore { // first (earliest) step wins ties
+				if score > bestScore {
 					best, bestScore = si, score
 				}
 			}
-			if best < 0 || used[best] { // not distinguishable -> bail to bounded spread
+			if best < 0 || used[best] {
 				routed = false
 				break
 			}
@@ -256,7 +289,8 @@ func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps [
 			continue
 		}
 
-		// (2) Bounded spread across a broadened phrase's steps (size close to k).
+		// (2) Bounded spread across a broadened phrase's steps (size close to k, so common staples
+		// mentioned in many steps are left piled rather than scattered).
 		words := strings.Fields(f)
 		var set []int
 		for n := len(words); n >= 1 && set == nil; n-- {
@@ -271,7 +305,7 @@ func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps [
 						hits = appendUnique(hits, si)
 					}
 				}
-				if len(hits) >= k && len(hits) <= k+1 { // close to k -> safe to spread
+				if len(hits) >= k && len(hits) <= k+1 {
 					sort.Ints(hits)
 					set = hits
 					break
@@ -288,7 +322,6 @@ func spreadDuplicates(group []int, kept []tandoor.IngredientCreate, lowerSteps [
 
 // modifierWords returns distinguishing words from an ingredient's original text that aren't part of
 // its cleaned food name — e.g. "melted" from "1/2 cup melted vegan butter" (food "vegan butter").
-// These prep words often name the step that uses the ingredient.
 func modifierWords(originalText, foodName string) []string {
 	inFood := map[string]bool{}
 	for _, w := range strings.Fields(strings.ToLower(foodName)) {

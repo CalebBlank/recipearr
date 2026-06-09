@@ -28,7 +28,7 @@ import (
 )
 
 type procOpts struct {
-	allocate, communize, dropJunk, forceShowTable bool
+	allocate, communize, dropJunk, forceShowTable, force bool
 }
 
 func main() {
@@ -44,6 +44,7 @@ func main() {
 		allocate   = flag.Bool("allocate", true, "re-allocate ingredients to steps (unallocated recipes only)")
 		communize  = flag.Bool("communize", true, "clean food names / fold bogus units")
 		dropJunk   = flag.Bool("dropjunk", true, "drop ingredient rows whose food is blank or a bare unit")
+		force      = flag.Bool("force", false, "re-allocate even when ingredients are already spread across steps (use for user-chosen recipes)")
 		backupDir  = flag.String("backup", "", "directory to save each recipe's JSON before patching")
 		verbose    = flag.Bool("v", false, "verbose per-recipe logging")
 	)
@@ -76,7 +77,7 @@ func main() {
 		return
 	}
 
-	opts := procOpts{allocate: *allocate, communize: *communize, dropJunk: *dropJunk, forceShowTable: true}
+	opts := procOpts{allocate: *allocate, communize: *communize, dropJunk: *dropJunk, forceShowTable: true, force: *force}
 
 	if *backupDir != "" {
 		_ = os.MkdirAll(*backupDir, 0o755)
@@ -349,7 +350,7 @@ func buildSteps(rec map[string]any, opts procOpts) (out []map[string]any, moved,
 			}
 		}
 	}
-	doAllocate := opts.allocate && len(stepMaps) > 1 && stepsWithIng <= 1
+	doAllocate := opts.allocate && len(stepMaps) > 1 && (stepsWithIng <= 1 || opts.force)
 
 	// Each pending row carries its original flat position (seq) so headers stay interleaved
 	// with their section's ingredients instead of bunching at the top.
@@ -364,53 +365,50 @@ func buildSteps(rec map[string]any, opts procOpts) (out []map[string]any, moved,
 		seq    int
 	}
 	var pool []movable
-	primary, primaryCount := 0, -1
+
+	// Build the flat, original-order ingredient view the shared allocator needs (headers included,
+	// so it can group by component), using the communized food names so it matches the import path.
+	instructions := make([]string, len(stepMaps))
+	for i, sm := range stepMaps {
+		instructions[i] = instruction(sm)
+	}
+	var fullIng []enrich.Ing
 	seq := 0
 	for i, sm := range stepMaps {
-		cnt := 0
 		for _, ig := range toSlice(sm["ingredients"]) {
 			im, _ := ig.(map[string]any)
-			isHeader := boolOr(im["is_header"])
-			if isHeader || isDetectedHeader(im) {
+			isHeader := boolOr(im["is_header"]) || isDetectedHeader(im)
+			fullIng = append(fullIng, enrich.Ing{
+				Food:         communizedName(im, opts.communize),
+				OriginalText: strOr(im["original_text"]),
+				Note:         strOr(im["note"]),
+				IsHeader:     isHeader,
+			})
+			if isHeader {
 				perStep[i] = append(perStep[i], pending{headerPatch(im), seq})
-				// Count as a change when newly detected, or when an existing header still
-				// carries a food (the old buggy representation that needs clearing).
-				if !isHeader || strings.TrimSpace(foodName(im)) != "" {
+				// Count as a change when newly detected, or when an existing header still carries
+				// a food (the old buggy representation that needs clearing).
+				if !boolOr(im["is_header"]) || strings.TrimSpace(foodName(im)) != "" {
 					headered++
 				}
 			} else {
 				pool = append(pool, movable{im, i, seq})
-				cnt++
 			}
 			seq++
 		}
-		if cnt > primaryCount {
-			primaryCount, primary = cnt, i
-		}
 	}
 
-	// Assign each ingredient to a step. Duplicates of the same food are spread across the steps
-	// that mention it, in order (1st occurrence -> 1st matching step, 2nd -> 2nd, ...).
-	placed := map[string]int{}
+	// Re-allocate via the shared component-aware allocator (same code the import path uses), only on
+	// the "everything in one step" shape; otherwise keep each ingredient where it is.
+	var stepOf []int
+	if doAllocate {
+		stepOf = enrich.AssignSteps(fullIng, instructions)
+	}
 	for _, h := range pool {
 		dst := h.origin
 		if doAllocate {
-			dst = primary
-			if head := headWord(communizedName(h.im, opts.communize)); head != "" {
-				var matches []int
-				for i, sm := range stepMaps {
-					if mentions(instruction(sm), head) {
-						matches = append(matches, i)
-					}
-				}
-				if len(matches) > 0 {
-					k := placed[head]
-					if k >= len(matches) {
-						k = len(matches) - 1
-					}
-					dst = matches[k]
-					placed[head]++
-				}
+			if s := stepOf[h.seq]; s >= 0 && s < len(stepMaps) {
+				dst = s
 			}
 		}
 		if dst != h.origin {

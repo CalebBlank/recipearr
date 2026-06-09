@@ -250,6 +250,59 @@ const App = {
       el.innerHTML = `<span class="statusdot ok"></span> OK — ${r.recipe_count} recipes`;
     } catch (e) { el.innerHTML = `<span class="statusdot error"></span> ${esc(e.message)}`; }
   },
+
+  // ---- reprocess existing recipes ----
+  _repro: [],
+  async reprocessScan() {
+    $("repro-status").textContent = "Scanning your library… (this can take a minute)";
+    $("repro-apply").disabled = true;
+    try {
+      const r = await api.post("/api/reprocess", { mode: "preview" });
+      App._repro = r.items || [];
+      const s = r.summary || {};
+      const fixable = App._repro.filter(i => !i.skip);
+      $("repro-status").textContent =
+        `Scanned ${s.scanned}: ${s.fixable} fixable, ${s.componentized} componentized (skipped).`;
+      $("repro-apply").disabled = fixable.length === 0;
+      this.renderRepro();
+    } catch (e) { $("repro-status").textContent = ""; toast(e.message, true); }
+  },
+  renderRepro() {
+    const fixable = App._repro.filter(i => !i.skip);
+    const comp = App._repro.filter(i => i.skip === "componentized");
+    let html = "";
+    if (fixable.length) {
+      html += `<div class="panel"><strong>${fixable.length} fixable</strong>
+        <table><thead><tr><th>Recipe</th><th>Moved</th><th>Cleaned</th><th>Headers</th><th></th></tr></thead><tbody>` +
+        fixable.map(i => `<tr><td>${esc(i.name)}</td><td>${i.moved}</td><td>${i.communized}</td><td>${i.headers}</td>
+          <td>${i.applied ? '<span class="pill imported">done</span>' : (i.error ? '<span class="pill failed">' + esc(i.error) + '</span>' : '')}</td></tr>`).join("") +
+        `</tbody></table></div>`;
+    }
+    if (comp.length) {
+      html += `<div class="panel muted"><strong>${comp.length} componentized — skipped</strong>
+        (these have ingredient sections; re-import to fix them): ` + comp.map(i => esc(i.name)).join(", ") + `</div>`;
+    }
+    $("repro-results").innerHTML = html || `<div class="panel muted">Nothing to change — your library is already up to date.</div>`;
+  },
+  async reprocessApply() {
+    const fixable = App._repro.filter(i => !i.skip && !i.applied && !i.error);
+    if (!fixable.length) { toast("Nothing to apply — scan first", true); return; }
+    if (!confirm(`Reprocess ${fixable.length} recipe(s)? Each is backed up to the add-on's data folder first.`)) return;
+    $("repro-apply").disabled = true;
+    let done = 0, failed = 0;
+    for (let i = 0; i < fixable.length; i += 25) {
+      const ids = fixable.slice(i, i + 25).map(x => x.id);
+      $("repro-status").textContent = `Applying ${done}/${fixable.length}…`;
+      try {
+        const r = await api.post("/api/reprocess", { mode: "apply", ids });
+        done += (r.summary && r.summary.applied) || 0;
+        failed += (r.summary && r.summary.failed) || 0;
+      } catch (e) { toast(e.message, true); break; }
+    }
+    $("repro-status").textContent = `Done — reprocessed ${done} recipe(s)${failed ? ", " + failed + " failed" : ""}. Re-scanning…`;
+    toast(`Reprocessed ${done} recipe(s)`);
+    this.reprocessScan();
+  },
 };
 
 function srcRow(s) {

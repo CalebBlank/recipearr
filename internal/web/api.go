@@ -3,13 +3,17 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"recipearr/internal/filter"
 	"recipearr/internal/pipeline"
+	"recipearr/internal/reprocess"
 	"recipearr/internal/store"
 	"recipearr/internal/tandoor"
 )
@@ -237,6 +241,137 @@ func (s *Server) handleRunSource(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	writeJSON(w, http.StatusAccepted, map[string]bool{"started": true})
+}
+
+// ---- reprocess (refresh existing Tandoor recipes) ----
+
+type reprocessItem struct {
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	Moved      int    `json:"moved"`
+	Communized int    `json:"communized"`
+	Dropped    int    `json:"dropped"`
+	Headers    int    `json:"headers"`
+	Skip       string `json:"skip"`
+	Applied    bool   `json:"applied"`
+	Error      string `json:"error"`
+}
+
+// handleReprocess previews or applies the in-place reprocessor to existing Tandoor recipes:
+// re-allocates ingredients (new component-aware logic), communizes, drops junk, fixes headers.
+// Preview (mode != "apply") scans the whole library read-only. Apply requires explicit ids, backs
+// up each recipe to <data>/reprocess-backups before patching, and verifies counts afterward.
+// Componentized recipes are reported as "componentized" and never modified (re-import territory).
+func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Mode  string `json:"mode"`
+		IDs   []int  `json:"ids"`
+		Limit int    `json:"limit"`
+	}
+	_ = readJSON(r, &in)
+	url := strings.TrimSpace(s.getStr("tandoor_url", ""))
+	token := strings.TrimSpace(s.getStr("tandoor_token", ""))
+	if url == "" || token == "" {
+		writeErr(w, http.StatusBadRequest, "Set your Tandoor URL and token first")
+		return
+	}
+	apply := in.Mode == "apply"
+	if apply && len(in.IDs) == 0 {
+		writeErr(w, http.StatusBadRequest, "apply requires explicit recipe ids")
+		return
+	}
+	timeout := 3 * time.Minute
+	if apply {
+		timeout = 6 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	tc := tandoor.New(url, token)
+	opts := reprocess.Default()
+	opts.Force = true // user-chosen action -> re-allocate even already-distributed recipes
+
+	ids := in.IDs
+	if len(ids) == 0 {
+		var err error
+		if ids, err = tc.ListRecipeIDs(ctx); err != nil {
+			writeErr(w, http.StatusBadGateway, err.Error())
+			return
+		}
+	}
+	dataDir := strings.TrimSpace(os.Getenv("RECIPEARR_DATA_DIR"))
+	if dataDir == "" {
+		dataDir = "data"
+	}
+	backupDir := filepath.Join(dataDir, "reprocess-backups")
+
+	items := []reprocessItem{}
+	var fixable, componentized, applied, failed, acted int
+	for _, id := range ids {
+		if apply && in.Limit > 0 && acted >= in.Limit {
+			break
+		}
+		raw, err := tc.GetRecipeRaw(ctx, id)
+		if err != nil {
+			items = append(items, reprocessItem{ID: id, Error: err.Error()})
+			failed++
+			continue
+		}
+		var rec map[string]any
+		if json.Unmarshal(raw, &rec) != nil {
+			items = append(items, reprocessItem{ID: id, Error: "decode failed"})
+			failed++
+			continue
+		}
+		name, _ := rec["name"].(string)
+		res := reprocess.ProcessRecipe(rec, opts)
+		it := reprocessItem{ID: id, Name: name, Moved: res.Moved, Communized: res.Communized,
+			Dropped: res.Dropped, Headers: res.Headers, Skip: res.SkipReason}
+
+		switch {
+		case res.SkipReason == "componentized":
+			componentized++
+			items = append(items, it)
+		case res.SkipReason != "":
+			// other skips (no steps / no ingredients) — omit from the list
+		case res.Changed():
+			fixable++
+			if apply {
+				_ = os.MkdirAll(backupDir, 0o755)
+				_ = os.WriteFile(filepath.Join(backupDir, fmt.Sprintf("recipe-%d-%d.json", id, time.Now().Unix())), raw, 0o644)
+				body, _ := json.Marshal(map[string]any{"steps": res.NewSteps})
+				if _, err := tc.PatchRecipeRaw(ctx, id, body); err != nil {
+					it.Error = err.Error()
+					failed++
+				} else if after, err := tc.GetRecipeRaw(ctx, id); err == nil {
+					var ar map[string]any
+					_ = json.Unmarshal(after, &ar)
+					bi, bs := reprocess.Counts(rec)
+					ai, as := reprocess.Counts(ar)
+					if ai != bi-res.Dropped || as != bs {
+						it.Error = fmt.Sprintf("count safety %d/%d -> %d/%d", bi, bs, ai, as)
+						failed++
+					} else {
+						it.Applied = true
+						applied++
+					}
+				} else {
+					it.Applied = true
+					applied++
+				}
+				acted++
+				time.Sleep(120 * time.Millisecond)
+			}
+			items = append(items, it)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"summary": map[string]any{
+			"scanned": len(ids), "fixable": fixable, "componentized": componentized,
+			"applied": applied, "failed": failed, "backup_dir": backupDir,
+		},
+	})
 }
 
 // ---- rules ----

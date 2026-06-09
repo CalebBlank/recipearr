@@ -47,6 +47,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/items", s.handleListItems)
 	mux.HandleFunc("POST /api/import", s.handleImport)
 
+	mux.HandleFunc("POST /api/reprocess", s.handleReprocess)
+
 	// Static SPA from the embedded ui/ directory.
 	sub, err := fs.Sub(uiFS, "ui")
 	if err != nil {
