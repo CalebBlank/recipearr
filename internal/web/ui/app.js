@@ -54,7 +54,7 @@ function showTab(name) {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll("main section").forEach(s => s.classList.toggle("active", s.id === name));
   const fn = { dashboard: App.refreshDashboard, sources: App.refreshSources, filters: App.refreshFilters, activity: App.refreshActivity, settings: App.loadSettings }[name];
-  if (fn) fn();
+  if (fn) fn.call(App); // bind `this` to App — refreshSources() calls this.renderSources()
 }
 
 const App = {
