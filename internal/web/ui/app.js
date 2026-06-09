@@ -1,9 +1,12 @@
 "use strict";
 
 const api = {
-  async get(u) { return handle(await fetch(u)); },
+  // Resolve API paths RELATIVE to the page so the UI works behind HA Ingress (served at
+  // /api/hassio_ingress/<token>/) as well as on the raw port. Strips the leading slash.
+  rel(u) { return u.replace(/^\//, ""); },
+  async get(u) { return handle(await fetch(this.rel(u))); },
   async send(method, u, body) {
-    return handle(await fetch(u, {
+    return handle(await fetch(this.rel(u), {
       method,
       headers: { "Content-Type": "application/json" },
       body: body == null ? undefined : JSON.stringify(body),

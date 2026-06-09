@@ -124,7 +124,7 @@ func TestUnitFolding(t *testing.T) {
 		{"chipotle chile", ""},
 		{"flour tortillas", ""},
 		{"garlic", "cloves"},      // real unit kept
-		{"queso Oaxaca", "ounces"}, // real unit kept
+		{"queso oaxaca", "ounces"}, // real unit kept (food names are now lowercased)
 	}
 	for _, c := range want {
 		u, ok := got[c.food]

@@ -120,7 +120,9 @@ func convertIngredients(in []tandoor.RFSIngredient, opts Options) []tandoor.Ingr
 			foodName = communize(clean, opts.Aliases)
 			note = joinNote(note, extra)
 		}
-		foodName = strings.TrimSpace(foodName)
+		// Lowercase food names for consistency (Tandoor reuses foods by exact name, so stable casing
+		// collapses "Powdered sugar"/"powdered sugar" into one food).
+		foodName = strings.ToLower(strings.TrimSpace(foodName))
 		if foodName == "" {
 			// Without a food name Tandoor has nothing to link; skip rather than create junk.
 			continue
