@@ -264,9 +264,10 @@ type reprocessItem struct {
 // Componentized recipes are reported as "componentized" and never modified (re-import territory).
 func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Mode  string `json:"mode"`
-		IDs   []int  `json:"ids"`
-		Limit int    `json:"limit"`
+		Mode   string `json:"mode"`
+		IDs    []int  `json:"ids"`
+		Limit  int    `json:"limit"`
+		Offset int    `json:"offset"` // preview pagination: scan ids[offset:offset+limit]
 	}
 	_ = readJSON(r, &in)
 	url := strings.TrimSpace(s.getStr("tandoor_url", ""))
@@ -298,6 +299,25 @@ func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadGateway, err.Error())
 			return
 		}
+	}
+	total := len(ids)
+	if !apply { // preview is paginated so each request finishes well under the ingress proxy timeout
+		off := in.Offset
+		if off < 0 {
+			off = 0
+		}
+		if off > len(ids) {
+			off = len(ids)
+		}
+		lim := in.Limit
+		if lim <= 0 {
+			lim = 40
+		}
+		end := off + lim
+		if end > len(ids) {
+			end = len(ids)
+		}
+		ids = ids[off:end]
 	}
 	dataDir := strings.TrimSpace(os.Getenv("RECIPEARR_DATA_DIR"))
 	if dataDir == "" {
@@ -368,7 +388,7 @@ func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
 		"summary": map[string]any{
-			"scanned": len(ids), "fixable": fixable, "componentized": componentized,
+			"scanned": len(ids), "total": total, "fixable": fixable, "componentized": componentized,
 			"applied": applied, "failed": failed, "backup_dir": backupDir,
 		},
 	})

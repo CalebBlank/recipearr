@@ -254,18 +254,25 @@ const App = {
   // ---- reprocess existing recipes ----
   _repro: [],
   async reprocessScan() {
-    $("repro-status").textContent = "Scanning your library… (this can take a minute)";
     $("repro-apply").disabled = true;
+    App._repro = [];
+    const page = 40;
+    let offset = 0, total = null, fixable = 0, comp = 0;
     try {
-      const r = await api.post("/api/reprocess", { mode: "preview" });
-      App._repro = r.items || [];
-      const s = r.summary || {};
-      const fixable = App._repro.filter(i => !i.skip);
-      $("repro-status").textContent =
-        `Scanned ${s.scanned}: ${s.fixable} fixable, ${s.componentized} componentized (skipped).`;
-      $("repro-apply").disabled = fixable.length === 0;
-      this.renderRepro();
-    } catch (e) { $("repro-status").textContent = ""; toast(e.message, true); }
+      do {
+        $("repro-status").textContent = `Scanning… ${offset}${total != null ? "/" + total : ""}`;
+        const r = await api.post("/api/reprocess", { mode: "preview", offset, limit: page });
+        const s = r.summary || {};
+        total = (s.total != null) ? s.total : offset + (s.scanned || 0);
+        App._repro = App._repro.concat(r.items || []);
+        fixable += s.fixable || 0;
+        comp += s.componentized || 0;
+        offset += page;
+        this.renderRepro();
+      } while (offset < total);
+      $("repro-status").textContent = `Scanned ${total}: ${fixable} fixable, ${comp} componentized (skipped).`;
+      $("repro-apply").disabled = App._repro.filter(i => !i.skip).length === 0;
+    } catch (e) { $("repro-status").textContent = "Scan interrupted — try again."; toast(e.message, true); }
   },
   renderRepro() {
     const fixable = App._repro.filter(i => !i.skip);
