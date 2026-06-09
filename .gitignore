@@ -1,0 +1,16 @@
+# Stateful data — contains the SQLite DB with the Tandoor API token. Never commit/sync.
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Build output
+recipearr
+*.exe
+recipearr-arm64
+recipearr-amd64
+/dist/
+
+# Editor/OS noise
+.DS_Store
+*.swp

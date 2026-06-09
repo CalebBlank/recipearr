@@ -1,0 +1,15 @@
+services:
+  recipearr:
+    build: .
+    # image: recipearr:latest   # or pull/point at a prebuilt image
+    container_name: recipearr
+    restart: unless-stopped
+    ports:
+      - "8585:8585"
+    volumes:
+      - ./data:/data
+    environment:
+      # Optional: seed the Tandoor connection on first run (otherwise set it in the UI).
+      # The token is stored in /data/recipearr.db after first launch.
+      - TANDOOR_URL=${TANDOOR_URL:-}
+      - TANDOOR_TOKEN=${TANDOOR_TOKEN:-}

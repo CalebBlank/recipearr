@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recipearr</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Recipe<span class="arr">arr</span></h1>
+    <nav>
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="sources">Sources</button>
+      <button data-tab="filters">Filters</button>
+      <button data-tab="activity">Activity</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Dashboard -->
+    <section id="dashboard" class="active">
+      <div class="panel">
+        <div class="row">
+          <div id="conn-status"><span class="statusdot unknown"></span> checking Tandoor…</div>
+          <div class="spacer"></div>
+          <button class="btn secondary" onclick="App.refreshDashboard()">Refresh</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="row" id="stats"></div>
+      </div>
+      <h3>Recent activity</h3>
+      <div class="panel" id="dash-activity"></div>
+    </section>
+
+    <!-- Sources -->
+    <section id="sources">
+      <h2>Watched sites</h2>
+      <div id="sources-list"></div>
+
+      <h3>Add a source</h3>
+      <div class="panel">
+        <div class="grid cols-2">
+          <div><label>Name</label><input id="src-name" placeholder="Cookie and Kate"></div>
+          <div><label>Feed URL (RSS/Atom)</label><input id="src-feed" placeholder="https://example.com/feed/"></div>
+          <div><label>Site URL (optional)</label><input id="src-site" placeholder="https://example.com"></div>
+          <div><label>Poll interval (minutes)</label><input id="src-interval" type="number" value="60"></div>
+          <div><label>Default keywords (comma-separated, applied to every import)</label><input id="src-keywords" placeholder="blog, favorites"></div>
+          <div><label>Backlog limit (max recipes to import on add)</label><input id="src-backlog-limit" type="number" value="25"></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label style="margin:0"><input type="checkbox" id="src-backlog"> Import recent recipes on add</label>
+          <span class="help" style="margin:0">Off = watch for new posts only. RSS exposes ~10–25 recent posts (not a full archive).</span>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="App.addSource()">Add source</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section id="filters">
+      <h2>Filter rules</h2>
+      <p class="help">Blacklist wins. If any whitelist rule exists, a recipe must match at least one. Rules match
+        author-applied labels/text — not a nutritional analysis. Absence claims like "gluten-free" only match when the source says so.</p>
+      <div id="rules-list"></div>
+
+      <h3>Add a rule</h3>
+      <div class="panel">
+        <div class="grid cols-2">
+          <div><label>Mode</label><select id="rule-mode"><option value="blacklist">Blacklist (block)</option><option value="whitelist">Whitelist (require)</option></select></div>
+          <div><label>Field</label><select id="rule-field"><option value="any">Any</option><option value="title">Title</option><option value="description">Description</option><option value="tags">Tags</option><option value="ingredients">Ingredients</option></select></div>
+          <div><label>Keyword</label><input id="rule-keyword" placeholder="vegan"></div>
+          <div><label>Match</label><select id="rule-match"><option value="contains">Contains</option><option value="word">Whole word</option><option value="regex">Regex</option></select></div>
+          <div><label>Scope</label><select id="rule-source"><option value="">Global (all sources)</option></select></div>
+        </div>
+        <div class="row" style="margin-top:12px"><button class="btn" onclick="App.addRule()">Add rule</button></div>
+      </div>
+    </section>
+
+    <!-- Activity -->
+    <section id="activity">
+      <h2>Activity</h2>
+      <div class="panel">
+        <h3 style="margin-top:0">Import a URL now</h3>
+        <div class="row">
+          <input id="import-url" placeholder="https://example.com/some-recipe/" style="flex:1">
+          <button class="btn" onclick="App.importOne()">Import</button>
+        </div>
+        <label style="margin-top:12px">Bulk import (one URL per line)</label>
+        <textarea id="import-bulk" placeholder="https://…&#10;https://…"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn secondary" onclick="App.importBulk()">Import all</button></div>
+      </div>
+
+      <div class="row" style="margin-bottom:10px">
+        <label style="margin:0">Filter:</label>
+        <select id="activity-filter" style="width:auto" onchange="App.refreshActivity()">
+          <option value="">All</option>
+          <option value="imported">Imported</option>
+          <option value="filtered_out">Filtered out</option>
+          <option value="duplicate">Duplicate</option>
+          <option value="failed">Failed</option>
+          <option value="skipped">Skipped</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn secondary" onclick="App.refreshActivity()">Refresh</button>
+      </div>
+      <div class="panel" id="activity-list"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings">
+      <h2>Settings</h2>
+      <div class="panel">
+        <h3 style="margin-top:0">Tandoor connection</h3>
+        <div class="grid cols-2">
+          <div><label>Tandoor URL</label><input id="set-url" placeholder="http://192.168.0.31:9928"></div>
+          <div><label>API token</label><input id="set-token" type="password" placeholder="leave blank to keep current"></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="App.saveSettings()">Save</button>
+          <button class="btn secondary" onclick="App.testConnection()">Test connection</button>
+          <span id="set-test-result" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Import quality (enrichment)</h3>
+        <div class="grid">
+          <label><input type="checkbox" id="en-tags"> Curate tags (keep cuisine/course, drop domain/author noise, add diet/style tags)</label>
+          <label><input type="checkbox" id="en-desc"> Clean descriptions (strip HTML, entities, blog boilerplate)</label>
+          <label><input type="checkbox" id="en-food"> Communize foods (clean names, move prep to notes, reuse existing foods)</label>
+          <label><input type="checkbox" id="en-steps"> Allocate ingredients to the step that uses them</label>
+        </div>
+        <div class="grid cols-2" style="margin-top:12px">
+          <div><label>Description mode</label><select id="en-descmode"><option value="clean">Clean</option><option value="raw">Keep raw</option><option value="blank">Blank</option></select></div>
+          <div><label>Tag denylist (comma-separated substrings)</label><input id="en-denylist" placeholder=".com, sponsored"></div>
+        </div>
+        <div class="row" style="margin-top:12px"><button class="btn" onclick="App.saveSettings()">Save</button></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Organization</h3>
+        <label><input type="checkbox" id="opt-books"> Add each imported recipe to a Tandoor Recipe Book named after its source (e.g. &quot;Serious Eats&quot;)</label>
+        <div class="row" style="margin-top:12px"><button class="btn" onclick="App.saveSettings()">Save</button></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

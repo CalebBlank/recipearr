@@ -1,0 +1,19 @@
+name: Recipearr
+version: "1.0.0"
+slug: recipearr
+description: "*arr for recipes: watch recipe RSS feeds, filter by keyword, enrich, and import to Tandoor."
+# HA Yellow (CM4) is aarch64. The add-on ships a prebuilt static arm64 binary so the Supervisor
+# build is trivial (copy into distroless) — no Go toolchain or compile on the Pi.
+arch:
+  - aarch64
+startup: application
+boot: auto
+# Single static binary, no s6-overlay init needed.
+init: false
+# Expose the web UI on the host. Open http://<yellow-ip>:8585.
+ports:
+  "8585/tcp": 8585
+ports_description:
+  "8585/tcp": "Recipearr web UI"
+# The SQLite DB lives in the add-on's auto-persisted /data (Supervisor-managed, survives restarts
+# and updates) — which is exactly what fixes the Nextcloud data-loss. Configure Tandoor in the UI.
