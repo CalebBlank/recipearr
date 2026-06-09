@@ -38,7 +38,11 @@ func AssignSteps(pool []Ing, instructions []string) []int {
 
 	lowerSteps := make([]string, len(instructions))
 	for i := range instructions {
-		lowerSteps[i] = strings.ToLower(instructions[i])
+		ins := instructions[i]
+		if i == 0 {
+			ins = stripBlurbForMatch(ins) // scrapers glue the recipe summary onto step 1; don't match against it
+		}
+		lowerSteps[i] = strings.ToLower(ins)
 	}
 
 	// Parse components: mark headers (-1) and group the ingredients that follow each one.
@@ -143,6 +147,44 @@ func allocateIngredients(steps []tandoor.StepCreate) []tandoor.StepCreate {
 // detection because it has the amount/unit context (and any stored is_header field) that AssignSteps
 // deliberately doesn't.
 func isHeaderIng(ing Ing) bool { return ing.IsHeader }
+
+// liftLeadingBlurb splits a step instruction that begins with a markdown-italic recipe summary into
+// (blurb, rest). Scrapers (recipe-from-source) frequently glue the recipe's summary blurb onto the
+// first instruction step as a leading *…* / **…** block; that blurb name-drops ingredients ("loaded
+// with feta, chopped pistachios") which then falsely match step 1. We only treat it as a blurb when
+// the block is sentence-length AND ends a sentence (a real summary) and real instruction text
+// follows — so a short emphasized step label like "**Make the dressing**" is NOT lifted (which would
+// strip the step's own label). Returns ok=false when there's no such blurb.
+func liftLeadingBlurb(instruction string) (blurb, rest string, ok bool) {
+	s := strings.TrimSpace(instruction)
+	if len(s) < 2 || s[0] != '*' {
+		return "", "", false
+	}
+	n := 1
+	if s[1] == '*' {
+		n = 2
+	}
+	marker := s[:n]
+	j := strings.Index(s[n:], marker)
+	if j < 0 {
+		return "", "", false
+	}
+	inner := strings.TrimSpace(s[n : n+j])
+	after := strings.TrimSpace(s[n+j+n:])
+	if after == "" || len(inner) < 40 || !strings.Contains(inner, ".") {
+		return "", "", false
+	}
+	return inner, after, true
+}
+
+// stripBlurbForMatch returns an instruction with a leading recipe-summary blurb removed, for
+// ingredient->step matching only (display is handled separately in Transform).
+func stripBlurbForMatch(instruction string) string {
+	if _, rest, ok := liftLeadingBlurb(instruction); ok {
+		return rest
+	}
+	return instruction
+}
 
 // DetectHeader reports whether a row reads like a section header rather than a food: its original
 // text ends with ":" or starts with "for the …" / "to garnish/serve". Callers AND it with the

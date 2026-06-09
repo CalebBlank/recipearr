@@ -1,0 +1,114 @@
+{
+  "name": "Creamy Almond Butter Hot Chocolate",
+  "source": "https://vegnews.com/recipes/vegan-almond-hot-chocolate",
+  "description": "Nutty almond butter and irresistible melted chocolate chips make this a hot chocolate recipe that kids will go wild for.",
+  "steps": [
+    {
+      "instruction": "In a small sauce pan over medium-low heat, warm almond milk. Add almond butter, cocoa powder, maple syrup, cinnamon, vanilla extract, and salt, and whisk every 30 seconds until mixture is smooth and almost simmering, 4 to 5 minutes. Add chocolate chips and whisk 1 more minute, until melted.",
+      "ingredients": [
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "For the hot chocolate",
+          "original_text": "For the hot chocolate:",
+          "note": ""
+        },
+        {
+          "amount": 4.0,
+          "unit": "",
+          "food": "cups",
+          "original_text": "4 cups",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "unsweetened almond milk",
+          "original_text": "unsweetened almond milk",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "cup",
+          "food": "creamy almond butter",
+          "original_text": "\u00bc cup creamy almond butter",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "cup",
+          "food": "cocoa powder",
+          "original_text": "\u00bc cup cocoa powder",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "cup",
+          "food": "maple syrup",
+          "original_text": "\u00bc cup maple syrup",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "teaspoon",
+          "food": "ground cinnamon",
+          "original_text": "1 teaspoon ground cinnamon",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "teaspoon",
+          "food": "vanilla extract",
+          "original_text": "\u00bd teaspoon vanilla extract",
+          "note": ""
+        },
+        {
+          "amount": 0.125,
+          "unit": "teaspoon",
+          "food": "salt",
+          "original_text": "\u215b teaspoon salt",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "",
+          "food": "cup",
+          "original_text": "\u00bc cup",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "vegan chocolate chips",
+          "original_text": "vegan chocolate chips",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "For topping",
+          "original_text": "For topping:",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Vegan marshmallows",
+          "original_text": "Vegan marshmallows",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Cinnamon sticks",
+          "original_text": "Cinnamon sticks",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "instruction": "Transfer to mugs, top with marshmallows, and add a cinnamon stick to each mug to stir with.",
+      "ingredients": []
+    }
+  ]
+}

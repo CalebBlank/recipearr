@@ -1,0 +1,146 @@
+{
+  "name": "Easy Vegan Poutine With Herby Gravy and Mozzarella",
+  "source": "https://vegnews.com/recipes/easy-vegan-poutine",
+  "description": "This classic Canadian dish consisting of French fries and cheese curds topped with a brown gravy gets a plant-based makeover.",
+  "steps": [
+    {
+      "instruction": "On a rimmed baking sheet, spread out French fries evenly and bake until golden and crispy, according to package directions.",
+      "ingredients": [
+        {
+          "amount": 1.0,
+          "unit": "bag",
+          "food": "frozen French fries",
+          "original_text": "1 (20-ounce) bag frozen French fries",
+          "note": "20-ounce"
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "For the gravy",
+          "original_text": "For the gravy:",
+          "note": ""
+        },
+        {
+          "amount": 3.0,
+          "unit": "",
+          "food": "tablespoons",
+          "original_text": "3 tablespoons",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "vegan butter",
+          "original_text": "vegan butter",
+          "note": ""
+        },
+        {
+          "amount": 3.0,
+          "unit": "tablespoons",
+          "food": "flour",
+          "original_text": "3 tablespoons flour",
+          "note": ""
+        },
+        {
+          "amount": 1.5,
+          "unit": "cups",
+          "food": "low-sodium",
+          "original_text": "1\u00bd cups low-sodium",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "vegetable broth",
+          "original_text": "vegetable broth",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "tablespoon",
+          "food": "low-sodium soy sauce",
+          "original_text": "1 tablespoon low-sodium soy sauce",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "teaspoon",
+          "food": "garlic powder",
+          "original_text": "\u00bd teaspoon garlic powder",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "teaspoon",
+          "food": "black pepper",
+          "original_text": "\u00bc teaspoon black pepper",
+          "note": ""
+        },
+        {
+          "amount": 2.0,
+          "unit": "sprigs",
+          "food": "Leaves from fresh thyme",
+          "original_text": "Leaves from 2 sprigs fresh thyme, or \u00bc teaspoon dried thyme leaves",
+          "note": "or \u00bc teaspoon dried thyme leaves"
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "For garnish",
+          "original_text": "For garnish:",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "",
+          "food": "cup",
+          "original_text": "1 cup",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "vegan mozzarella",
+          "original_text": "vegan mozzarella",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "melted",
+          "original_text": ", melted",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Coarse sea salt",
+          "original_text": "Coarse sea salt",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Ground black pepper",
+          "original_text": "Ground black pepper",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "sprig",
+          "food": "fresh thyme",
+          "original_text": "1 sprig fresh thyme, roughly chopped",
+          "note": "roughly chopped"
+        }
+      ]
+    },
+    {
+      "instruction": "For the gravy, in a medium-sized saucepan over medium-low heat, melt butter. Once melted, add flour and whisk to combine. Once flour is cooked in with butter, slowly whisk in broth \u00bc cup at a time to ensure gravy stays smooth. Stir in remaining ingredients and let gravy simmer over low heat for 5 minutes, or until thickened.",
+      "ingredients": []
+    },
+    {
+      "instruction": "Place fries on a large plate. Drizzle gravy over top. Add dollops of vegan mozzarella to fries to replicate cheese curds. Garnish with coarse salt, pepper, and thyme. Serve warm.",
+      "ingredients": []
+    }
+  ]
+}

@@ -62,6 +62,21 @@ func Transform(r *tandoor.RFSRecipe, opts Options) tandoor.RecipeCreate {
 	out.Description = desc
 
 	steps := convertSteps(r.Steps, opts)
+	// Scrapers often glue the recipe's summary blurb onto step 1 as a leading *italic* block. Lift
+	// it off into the description (when empty) so it shows in the right place AND so its name-dropped
+	// ingredients stop polluting step matching.
+	if len(steps) > 0 {
+		if blurb, rest, ok := liftLeadingBlurb(steps[0].Instruction); ok {
+			steps[0].Instruction = rest
+			if strings.TrimSpace(out.Description) == "" {
+				d := blurb
+				if opts.CleanDescription {
+					d = cleanDescription(d, opts.DescriptionMode)
+				}
+				out.Description = strings.TrimSpace(d)
+			}
+		}
+	}
 	if opts.AllocateSteps {
 		steps = allocateIngredients(steps)
 	}

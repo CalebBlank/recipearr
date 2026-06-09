@@ -1,0 +1,150 @@
+{
+  "name": "Avocado Blueberry Quinoa Salad",
+  "source": "https://www.ambitiouskitchen.com/avocado-blueberry-quinoa-salad/",
+  "description": "Beautiful avocado blueberry quinoa salad loaded with fresh produce, tangy feta, chopped pistachios, and tossed in a flavorful cilantro lime dressing. This delicious quinoa salad is packed with plant-based protein and is perfect for summer lunches, parties, and picnics.",
+  "steps": [
+    {
+      "instruction": "*Beautiful avocado blueberry quinoa salad loaded with fresh produce, tangy feta, chopped pistachios, and tossed in a flavorful cilantro lime dressing. This delicious quinoa salad is packed with plant-based protein and is perfect for summer lunches, parties, and picnics.*  \n\nCook the quinoa: Add water and quinoa to a medium pot and place over high heat; bring mixture to a boil, then cover, reduce heat to low and cook for exactly 15 minutes. After 15 minutes, remove pot from heat and fluff quinoa with a fork. Then cover and allow quinoa to sit in the pot for 10 minutes.",
+      "ingredients": [
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "For the salad",
+          "original_text": "For the salad:",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "cup",
+          "food": "uncooked quinoa",
+          "original_text": "1 cup uncooked quinoa",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "firm",
+          "food": "but still ripe avocado",
+          "original_text": "1 firm but still ripe avocado, sliced or diced",
+          "note": "sliced or diced"
+        },
+        {
+          "amount": 1.0,
+          "unit": "cup",
+          "food": "blueberries",
+          "original_text": "1 cup blueberries",
+          "note": ""
+        },
+        {
+          "amount": 1.0,
+          "unit": "cup",
+          "food": "sweet corn",
+          "original_text": "1 cup sweet corn (preferably fresh off the cob)",
+          "note": "preferably fresh off the cob"
+        },
+        {
+          "amount": 0.5,
+          "unit": "cup",
+          "food": "finely diced red onion",
+          "original_text": "\u00bd cup finely diced red onion",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "cup",
+          "food": "feta cheese",
+          "original_text": "\u00bd cup feta cheese",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "cup",
+          "food": "chopped pistachios",
+          "original_text": "\u00bd cup chopped pistachios",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "cup",
+          "food": "diced cilantro",
+          "original_text": "\u00bd cup diced cilantro",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Cilantro Lime Dressing",
+          "original_text": "Cilantro Lime Dressing:",
+          "note": ""
+        },
+        {
+          "amount": 0.3333333333333333,
+          "unit": "cup",
+          "food": "packed cilantro leaves",
+          "original_text": "\u2153 cup packed cilantro leaves",
+          "note": ""
+        },
+        {
+          "amount": 0.25,
+          "unit": "cup",
+          "food": "olive oil",
+          "original_text": "\u00bc cup olive oil",
+          "note": ""
+        },
+        {
+          "amount": 2.0,
+          "unit": "tablespoons",
+          "food": "fresh lime juice",
+          "original_text": "2 tablespoons fresh lime juice",
+          "note": ""
+        },
+        {
+          "amount": 0.5,
+          "unit": "",
+          "food": "jalape\u00f1o",
+          "original_text": "\u00bd jalape\u00f1o, seeded",
+          "note": "seeded"
+        },
+        {
+          "amount": 0.125,
+          "unit": "teaspoon",
+          "food": "salt",
+          "original_text": "\u215b teaspoon salt",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Freshly ground black pepper",
+          "original_text": "Freshly ground black pepper",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "To garnish",
+          "original_text": "To garnish",
+          "note": ""
+        },
+        {
+          "amount": 0.0,
+          "unit": "",
+          "food": "Extra cilantro",
+          "original_text": "Extra cilantro, pistachios, feta, and red onion",
+          "note": "pistachios, feta, and red onion"
+        }
+      ]
+    },
+    {
+      "instruction": "Make the dressing: While the quinoa is cooking, make your cilantro lime dressing by adding the ingredients to a blender: cilantro, olive oil, lime juice, jalape\u00f1o half, and salt and pepper. Blend until smooth. Set aside.",
+      "ingredients": []
+    },
+    {
+      "instruction": "Once your quinoa is done, add it to a large bowl. Add in the avocado, blueberries, corn, red onion, feta, pistachios, and cilantro.",
+      "ingredients": []
+    },
+    {
+      "instruction": "Pour dressing all over the quinoa salad and toss to combine. Garnish with extra cilantro, pistachios, feta, and red onion if you\u2019d like. Serve at room temp or cold. Salad will stay good for 3-5 days in the fridge. Serves 4-6.",
+      "ingredients": []
+    }
+  ]
+}
