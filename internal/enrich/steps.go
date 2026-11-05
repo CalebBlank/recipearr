@@ -125,7 +125,7 @@ func allocateIngredients(steps []tandoor.StepCreate) []tandoor.StepCreate {
 		instr[i] = steps[i].Instruction
 	}
 	for i, ic := range pool {
-		hdr := ic.Amount == 0 && ic.Unit == nil && DetectHeader(ic.Food.Name, ic.OriginalText)
+		hdr := ic.IsHeader || (ic.Amount == 0 && ic.Unit == nil && DetectHeader(ic.Food.Name, ic.OriginalText))
 		ings[i] = Ing{Food: ic.Food.Name, OriginalText: ic.OriginalText, Note: ic.Note, IsHeader: hdr}
 	}
 	stepOf := AssignSteps(ings, instr)

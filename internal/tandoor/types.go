@@ -7,16 +7,16 @@ import "encoding/json"
 // auto-create by name. Unit must be PRESENT on each ingredient (object or null).
 
 type RecipeCreate struct {
-	Name         string        `json:"name"`
-	Description   string        `json:"description"`
-	Internal     bool          `json:"internal"`
-	WorkingTime  int           `json:"working_time"`
-	WaitingTime  int           `json:"waiting_time"`
-	Servings     int           `json:"servings"`
-	ServingsText string        `json:"servings_text"`
-	SourceURL    string        `json:"source_url"`
-	Keywords     []KeywordRef  `json:"keywords"`
-	Steps        []StepCreate  `json:"steps"`
+	Name         string       `json:"name"`
+	Description  string       `json:"description"`
+	Internal     bool         `json:"internal"`
+	WorkingTime  int          `json:"working_time"`
+	WaitingTime  int          `json:"waiting_time"`
+	Servings     int          `json:"servings"`
+	ServingsText string       `json:"servings_text"`
+	SourceURL    string       `json:"source_url"`
+	Keywords     []KeywordRef `json:"keywords"`
+	Steps        []StepCreate `json:"steps"`
 }
 
 type KeywordRef struct {
@@ -38,6 +38,7 @@ type IngredientCreate struct {
 	OriginalText string   `json:"original_text"`
 	NoAmount     bool     `json:"no_amount"`
 	Order        int      `json:"order"`
+	IsHeader     bool     `json:"-"` // section header from CleanRows: groups allocation, never posted
 }
 
 type FoodRef struct {
@@ -86,6 +87,7 @@ type RFSIngredient struct {
 	Food         *RFSFood `json:"food"`
 	Note         string   `json:"note"`
 	OriginalText string   `json:"original_text"`
+	IsHeader     bool     `json:"is_header"`
 }
 
 type RFSUnit struct {

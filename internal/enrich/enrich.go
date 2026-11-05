@@ -16,10 +16,10 @@ import (
 )
 
 type Options struct {
-	Communize       bool
+	Communize        bool
 	CleanDescription bool
-	CurateTags      bool
-	AllocateSteps   bool
+	CurateTags       bool
+	AllocateSteps    bool
 
 	DescriptionMode string              // "clean" | "raw" | "blank"
 	Aliases         map[string]string   // lowercased food alias -> canonical name
@@ -61,7 +61,11 @@ func Transform(r *tandoor.RFSRecipe, opts Options) tandoor.RecipeCreate {
 	}
 	out.Description = desc
 
-	steps := convertSteps(r.Steps, opts)
+	rfsSteps := r.Steps
+	if opts.Communize {
+		rfsSteps = cleanRFSSteps(rfsSteps)
+	}
+	steps := convertSteps(rfsSteps, opts)
 	// Scrapers often glue the recipe's summary blurb onto step 1 as a leading *italic* block. Lift
 	// it off into the description (when empty) so it shows in the right place AND so its name-dropped
 	// ingredients stop polluting step matching.
@@ -79,6 +83,8 @@ func Transform(r *tandoor.RFSRecipe, opts Options) tandoor.RecipeCreate {
 	}
 	if opts.AllocateSteps {
 		steps = allocateIngredients(steps)
+	} else {
+		steps = dropHeaders(steps)
 	}
 	if len(steps) == 0 {
 		steps = []tandoor.StepCreate{{ShowIngredientsTable: true}}
@@ -115,6 +121,16 @@ func convertSteps(in []tandoor.RFSStep, opts Options) []tandoor.StepCreate {
 func convertIngredients(in []tandoor.RFSIngredient, opts Options) []tandoor.IngredientCreate {
 	out := make([]tandoor.IngredientCreate, 0, len(in))
 	for _, ing := range in {
+		if ing.IsHeader {
+			name := strings.TrimSpace(ing.Note)
+			if name == "" {
+				name = strings.TrimSpace(strings.TrimRight(ing.OriginalText, ":"))
+			}
+			if name != "" {
+				out = append(out, tandoor.IngredientCreate{Food: tandoor.FoodRef{Name: name}, OriginalText: strings.TrimSpace(ing.OriginalText), NoAmount: true, IsHeader: true})
+			}
+			continue
+		}
 		foodName := ""
 		if ing.Food != nil {
 			foodName = ing.Food.Name
@@ -261,4 +277,60 @@ func communize(name string, aliases map[string]string) string {
 		return canon
 	}
 	return name
+}
+
+// cleanRFSSteps runs the shared row cleanup (CleanRows) over the parsed ingredients, step by step in
+// their original order, so split measures, orphan modifiers, header lines and mis-parsed foods are
+// fixed before conversion. Clean rows pass through untouched.
+func cleanRFSSteps(in []tandoor.RFSStep) []tandoor.RFSStep {
+	var rows []Row
+	for si, s := range in {
+		for _, ing := range s.Ingredients {
+			r := Row{Amount: ing.Amount, Note: ing.Note, OriginalText: ing.OriginalText, IsHeader: ing.IsHeader, Group: si}
+			if ing.Unit != nil {
+				r.Unit = ing.Unit.Name
+			}
+			if ing.Food != nil {
+				r.Food = ing.Food.Name
+			}
+			rows = append(rows, r)
+		}
+	}
+	if len(rows) == 0 {
+		return in
+	}
+	cleaned, fixes := CleanRows(rows, CleanOptions{})
+	if len(fixes) == 0 {
+		return in
+	}
+	out := make([]tandoor.RFSStep, len(in))
+	for i, s := range in {
+		out[i] = s
+		out[i].Ingredients = nil
+	}
+	for _, c := range cleaned {
+		ing := tandoor.RFSIngredient{Amount: c.Amount, Note: c.Note, OriginalText: c.OriginalText, IsHeader: c.IsHeader}
+		if c.Unit != "" {
+			ing.Unit = &tandoor.RFSUnit{Name: c.Unit}
+		}
+		if c.Food != "" {
+			ing.Food = &tandoor.RFSFood{Name: c.Food}
+		}
+		out[c.Group].Ingredients = append(out[c.Group].Ingredients, ing)
+	}
+	return out
+}
+
+// dropHeaders removes header rows when allocation is off (nothing would use them for grouping).
+func dropHeaders(steps []tandoor.StepCreate) []tandoor.StepCreate {
+	for i := range steps {
+		kept := steps[i].Ingredients[:0]
+		for _, ic := range steps[i].Ingredients {
+			if !ic.IsHeader {
+				kept = append(kept, ic)
+			}
+		}
+		steps[i].Ingredients = kept
+	}
+	return steps
 }
