@@ -24,6 +24,11 @@ func TestParseLine(t *testing.T) {
 		{"Pinch of cloves", 0, "Pinch", "cloves", ""},
 		{"1 (2-lb [908 g]) cabbage", 1, "", "cabbage", "908 g"},
 		{"1½ cups (300 g) flour, sifted", 1.5, "cups", "flour", "sifted"},
+		{"1 \u2044 6 cup (40 ml) maple syrup", 1.0 / 6, "cup", "maple syrup", "40 ml"},
+		{"½ cup (95 g) and 2 tbsp (24 g) sugar", .5, "cup", "sugar", "plus 2 tbsp"},
+		{"A few big pinches of salt", 0, "", "salt", "a few big pinches"},
+		{"a sprinkling of confectioners’ sugar", 0, "", "confectioners’ sugar", "a sprinkling"},
+		{"3.5 oz (98 g) 70% cacao vegan dark chocolate", 3.5, "oz", "70% cacao vegan dark chocolate", ""},
 	}
 	for _, c := range cases {
 		p := ParseLine(c.in)
@@ -214,5 +219,17 @@ func TestCleanRowsMeasurePlusModifier(t *testing.T) {
 	}
 	if len(out) == 2 && len(out[1].Kinds) != 0 {
 		t.Errorf("clean row touched: %+v", out[1])
+	}
+}
+
+func TestCleanRowsLeavesNumberedFoods(t *testing.T) {
+	in := []Row{
+		row("3.5 oz (98 g) 70% cacao vegan dark chocolate", "70% cacao vegan dark chocolate", "oz", 3.5, "98 g"),
+		row("1 recipe 5-Minute Granola", "5-Minute Granola", "recipe", 1, ""),
+		row("To serve, use a spatula to scoop a slice of toast out of the baking dish.", "To serve, use a spatula", "", 0, ""),
+	}
+	_, fixes := CleanRows(in, CleanOptions{})
+	if len(fixes) != 0 {
+		t.Errorf("unexpected fixes: %+v", fixes)
 	}
 }

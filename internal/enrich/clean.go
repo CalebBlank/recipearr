@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	htmlTag   = regexp.MustCompile(`<[^>]*>`)
-	wsRun     = regexp.MustCompile(`\s+`)
-	leadingNum = regexp.MustCompile(`^[\d¼½¾⅓⅔⅛⅜⅝⅞.,/\s-]+`)
+	htmlTag     = regexp.MustCompile(`<[^>]*>`)
+	wsRun       = regexp.MustCompile(`\s+`)
+	leadingNum  = regexp.MustCompile(`^[\d¼½¾⅓⅔⅛⅜⅝⅞.,/\s-]+`)
 	leadingUnit = regexp.MustCompile(`(?i)^(grams?|g|kg|kilograms?|oz|ounces?|ml|milliliters?|l|liters?|lb|lbs|pounds?|cups?|tbsps?|tablespoons?|tsps?|teaspoons?|pinch|pinches|cloves?|cans?|sticks?|sprigs?)\b\.?\s+`)
 
 	boilerplate = []*regexp.Regexp{
@@ -61,10 +61,11 @@ var prepWords = map[string]bool{
 
 // cleanFoodName normalizes a (possibly mangled) food name and returns any text that should
 // move to the ingredient note. Handles the failure modes the user reported:
-//   "(1.75 ounces; 50g) sugar"   -> "sugar"            note: "1.75 ounces; 50g"
-//   "sugar or brown sugar"       -> "sugar"            note: "or brown sugar"
-//   "finely chopped white onion" -> "white onion"
-//   "50g sugar"                  -> "sugar"
+//
+//	"(1.75 ounces; 50g) sugar"   -> "sugar"            note: "1.75 ounces; 50g"
+//	"sugar or brown sugar"       -> "sugar"            note: "or brown sugar"
+//	"finely chopped white onion" -> "white onion"
+//	"50g sugar"                  -> "sugar"
 func cleanFoodName(name string) (string, string) {
 	s := strings.TrimSpace(name)
 	var notes []string

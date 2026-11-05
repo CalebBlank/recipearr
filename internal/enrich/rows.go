@@ -70,7 +70,7 @@ var (
 	bareNumRe   = regexp.MustCompile(`^\s*[\d./` + vulgarClass + `\s-]+\s*$`)
 	labelRe     = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z '&/-]{0,30}?)\s*:\s*(\S.*)$`)
 	foodLeadRe  = regexp.MustCompile(`(?i)^\s*(of|plus|the|and|\+|\.)(\s|$|\.)`)
-	articleFood = regexp.MustCompile(`(?i)^(a|an)\s+(pinch|dash|handful|splash|sprinkle|drizzle|few|couple|squeeze|knob)\b`)
+	articleFood = regexp.MustCompile(`(?i)^(a|an)\s+(few|couple|big|small|generous|good|pinch|dash|handful|splash|sprinkl|drizzle|squeeze|knob|little|bit)`)
 	digitLead   = regexp.MustCompile(`^[\d` + vulgarClass + `]`)
 	orphanSet   = setOf("to taste", "for garnish", "plus more", "as needed", "or to taste", "plus more to taste",
 		"at room temperature", "room temperature", "for serving", "plus extra", "or more", "more to taste")
@@ -283,7 +283,7 @@ func fixRow(r Row) (nr Row, kind string, drop bool, risk, reason string) {
 		bad = KUnitFood
 	case foodL != "" && allWords(foodL, isAdjective) && moreWordsThanMeasure(otTrim):
 		bad = KModifierFood
-	case digitLead.MatchString(foodL) || strings.Contains(r.Food, "⁄"):
+	case measureInFood(r.Food) || strings.Contains(r.Food, "\u2044") || strings.HasPrefix(foodL, "/"):
 		bad = KMeasureFood
 		if strings.Contains(r.OriginalText, "⁄") {
 			bad = KFractionSlash
@@ -294,7 +294,10 @@ func fixRow(r Row) (nr Row, kind string, drop bool, risk, reason string) {
 			return r, "", false, "", "" // pass 2 merges it with the next row
 		}
 		p := ParseLine(otTrim)
-		if !CleanFood(p.Food) || strings.EqualFold(p.Food, r.Food) {
+		if strings.EqualFold(p.Food, r.Food) {
+			return r, "", false, "", "" // re-parse agrees with what's stored ("Pinch of cloves" -> cloves)
+		}
+		if !CleanFood(p.Food) {
 			return r, KUnresolved, false, "report", bad + ": re-parse of the original text didn't give a clean food"
 		}
 		n := r
@@ -330,6 +333,16 @@ func fixRow(r Row) (nr Row, kind string, drop bool, risk, reason string) {
 	return r, "", false, "", ""
 }
 
+// measureInFood: the food itself starts with a measure ("2 tbsp oil"), not a name that happens to
+// start with a number ("70% cacao chocolate", "5-Minute Granola").
+func measureInFood(f string) bool {
+	if !digitLead.MatchString(f) {
+		return false
+	}
+	p := ParseLine(f)
+	return p.Amount > 0 && p.Unit != ""
+}
+
 // CleanFood reports whether f is usable as a food name.
 func CleanFood(f string) bool {
 	f = strings.TrimSpace(f)
@@ -337,7 +350,7 @@ func CleanFood(f string) bool {
 	if f == "" || len(f) > 60 || strings.Contains(f, ":") {
 		return false
 	}
-	if IsUnitWord(fl) || allWords(fl, isAdjective) || foodLeadRe.MatchString(fl) || digitLead.MatchString(fl) || articleFood.MatchString(fl) {
+	if IsUnitWord(fl) || allWords(fl, isAdjective) || foodLeadRe.MatchString(fl) || measureInFood(f) || articleFood.MatchString(fl) || strings.HasPrefix(fl, "/") {
 		return false
 	}
 	return FixMojibake(f) == f && !strings.Contains(f, "⁄")
@@ -383,6 +396,9 @@ func moreWordsThanMeasure(ot string) bool {
 // looksHeader: a section label rather than a food. Uses DetectHeader plus shouted ALL-CAPS lines
 // (acronyms like TVP/MSG/BBQ excluded) and a bare "Optional".
 func looksHeader(food, ot string) bool {
+	if t := strings.TrimSpace(otOr(ot, food)); len(t) > 50 || strings.Count(t, " ") > 7 {
+		return false // a sentence ("To serve, use a spatula to ...") is not a section label
+	}
 	if DetectHeader(food, ot) {
 		return true
 	}

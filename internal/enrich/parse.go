@@ -54,9 +54,10 @@ var (
 	parenRe   = regexp.MustCompile(`\(([^()\[\]]*)\)`)
 	brackRe   = regexp.MustCompile(`\[([^()\[\]]*)\]`)
 	unitRngRe = regexp.MustCompile(`^([A-Za-z]+)\.?\s*[–—-]\s*[\d./` + vulgarClass + `]+\s*([A-Za-z]+)?\.?\s+`)
-	plusRe    = regexp.MustCompile(`(?i)^\s*(?:\+|plus)\s*([\d./` + vulgarClass + `]+\s*[A-Za-z]+\.?)\s*`)
+	plusRe    = regexp.MustCompile(`(?i)^\s*(\+|plus|and)\s*([\d./` + vulgarClass + `]+\s*[A-Za-z]+\.?)\s*`)
+	fracSpRe  = regexp.MustCompile(`(\d)\s*/\s*(\d)`)
 	leadRe    = regexp.MustCompile(`(?i)^(?:of|the|plus)\s+`)
-	articleRe = regexp.MustCompile(`(?i)^(a|an|one)\s+(pinch|dash|handful|splash|sprinkle|drizzle|few|couple|squeeze|knob|bunch|sprig|glug)\s+(?:of\s+)?`)
+	articleRe = regexp.MustCompile(`(?i)^((?:a|an|one)\s+(?:(?:few|couple)\s+(?:of\s+)?)?(?:(?:big|small|generous|good|large)\s+)?(?:pinch(?:es)?|dash(?:es)?|handfuls?|splash(?:es)?|sprinkl(?:e|ing)|drizzle|few|couple|squeeze|knob|bunch|sprigs?|glug|little|bit|drops?))\s+(?:of\s+)?`)
 	orRe      = regexp.MustCompile(`\s+or\s+`)
 	nonAlpha  = regexp.MustCompile(`[^a-z-]`)
 )
@@ -76,7 +77,7 @@ func NormalizeText(s string) string {
 	s = FixMojibake(s)
 	s = strings.ReplaceAll(s, "⁄", "/")
 	s = strings.ReplaceAll(s, " ", " ")
-	return s
+	return fracSpRe.ReplaceAllString(s, "$1/$2") // "1 / 6" -> "1/6"
 }
 
 var cp1252 = map[rune]byte{
@@ -203,7 +204,7 @@ func ParseLine(line string) Parsed {
 	// "A pinch of sea salt" -> food "sea salt", note "a pinch"
 	if amount == 0 {
 		if m := articleRe.FindStringSubmatchIndex(text); m != nil {
-			notes = append(notes, strings.ToLower(text[m[2]:m[3]]+" "+text[m[4]:m[5]]))
+			notes = append(notes, strings.ToLower(text[m[2]:m[3]]))
 			text = text[m[1]:]
 		}
 	}
@@ -239,7 +240,7 @@ func ParseLine(line string) Parsed {
 		}
 	}
 	if m := plusRe.FindStringSubmatchIndex(text); m != nil {
-		notes = append(notes, "plus "+strings.TrimSpace(text[m[2]:m[3]]))
+		notes = append(notes, "plus "+strings.TrimSpace(text[m[4]:m[5]]))
 		text = text[m[1]:]
 	}
 	text = strings.TrimLeft(text, " .")

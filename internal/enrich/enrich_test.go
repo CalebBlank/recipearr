@@ -18,12 +18,12 @@ func TestCleanFoodName(t *testing.T) {
 		{"finely chopped white onion", "white onion", ""},
 		{"50g sugar", "sugar", ""},
 		{"ground coriander", "ground coriander", ""}, // meaning preserved
-		{"red onion", "red onion", ""},                // variety preserved
+		{"red onion", "red onion", ""},               // variety preserved
 		{"lime juice (from about 1 limes)", "lime juice", "from about 1 limes"},
 		{"  kosher salt  ", "kosher salt", ""},
 		{"pork belly, cut into thin strips", "pork belly", "cut into thin strips"},
 		{"jalapeño, seeds and ribs removed, finely chopped", "jalapeño", "seeds and ribs removed"},
-		{"15-ounce cans chickpeas", "chickpeas", ""},     // stacked units stripped
+		{"15-ounce cans chickpeas", "chickpeas", ""},      // stacked units stripped
 		{"15 ounce can crushed tomatoes", "tomatoes", ""}, // unit + unit + prep
 	}
 	for _, c := range cases {
@@ -123,7 +123,7 @@ func TestUnitFolding(t *testing.T) {
 		{"árbol chiles", ""},
 		{"chipotle chile", ""},
 		{"flour tortillas", ""},
-		{"garlic", "cloves"},      // real unit kept
+		{"garlic", "cloves"},       // real unit kept
 		{"queso oaxaca", "ounces"}, // real unit kept (food names are now lowercased)
 	}
 	for _, c := range want {
