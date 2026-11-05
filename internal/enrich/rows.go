@@ -69,7 +69,7 @@ var (
 	yieldLeadRe = regexp.MustCompile(`(?i)^\s*(approximately|approx\.?|about|makes|yields?|serves)\b`)
 	bareNumRe   = regexp.MustCompile(`^\s*[\d./` + vulgarClass + `\s-]+\s*$`)
 	labelRe     = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z '&/-]{0,30}?)\s*:\s*(\S.*)$`)
-	foodLeadRe  = regexp.MustCompile(`(?i)^\s*(of|plus|the|and|\+|\.)(\s|$|\.)`)
+	foodLeadRe  = regexp.MustCompile(`(?i)^\s*(of|or|plus|the|and|\+|\.)(\s|$|\.)`)
 	articleFood = regexp.MustCompile(`(?i)^(a|an)\s+(few|couple|big|small|generous|good|pinch|dash|handful|splash|sprinkl|drizzle|squeeze|knob|little|bit)`)
 	digitLead   = regexp.MustCompile(`^[\d` + vulgarClass + `]`)
 	orphanSet   = setOf("to taste", "for garnish", "plus more", "as needed", "or to taste", "plus more to taste",
@@ -109,7 +109,7 @@ func CleanRows(rows []Row, opts CleanOptions) ([]OutRow, []Fix) {
 		if kind == "" {
 			continue
 		}
-		work[i].flagged = true
+		work[i].flagged = kind != KMojibake // a text-only repair can still be merged in pass 2 ("1Â¼ pounds" + "flour")
 		f := Fix{Kind: kind, Rows: []int{i}, Before: []Row{r}, Risk: risk, Apply: risk == "safe", Reason: reason}
 		if !drop && kind != KUnresolved && kind != KBareNumber && kind != KAmountMismatch {
 			cp := nr
@@ -302,6 +302,9 @@ func fixRow(r Row) (nr Row, kind string, drop bool, risk, reason string) {
 		}
 		n := r
 		pf, pn := reparsed(p)
+		if !CleanFood(pf) {
+			return r, KUnresolved, false, "report", bad + ": re-parse of the original text didn't give a clean food"
+		}
 		n.Amount, n.Unit, n.Food, n.Note = p.Amount, strings.ToLower(p.Unit), caseLike(pf, r.Food), pn
 		n.OriginalText = otTrim
 		return n, bad, false, "safe", ""
@@ -443,6 +446,9 @@ func otOr(ot, food string) string {
 // ("chopped cilantro") move to the note, like the import path's cleanFoodName.
 func reparsed(p Parsed) (food, note string) {
 	food = stripLeadingPrep(p.Food)
+	if !CleanFood(food) { // "fresh or frozen blueberries": keep the phrase whole
+		food = p.Food
+	}
 	note = p.Note
 	if lead := strings.TrimSpace(strings.TrimSuffix(p.Food, food)); lead != "" {
 		note = joinNote(strings.ToLower(lead), note)

@@ -233,3 +233,22 @@ func TestCleanRowsLeavesNumberedFoods(t *testing.T) {
 		t.Errorf("unexpected fixes: %+v", fixes)
 	}
 }
+
+func TestCleanRowsMojibakeSplit(t *testing.T) {
+	in := []Row{
+		row("Â½ cup", "cup", "", 0.5, ""),
+		row("unsweetened almond milk", "unsweetened almond milk", "", 0, ""),
+		row(", room temperature", ", room temperature", "", 0, ""),
+	}
+	out, fixes := CleanRows(in, CleanOptions{})
+	if len(out) != 1 || out[0].Food != "unsweetened almond milk" || out[0].Unit != "cup" || out[0].Amount != 0.5 || out[0].Note != "room temperature" {
+		t.Errorf("out = %+v fixes = %+v", out, fixes)
+	}
+}
+
+func TestCleanRowsKeepsOrPhraseWhole(t *testing.T) {
+	_, fixes := CleanRows([]Row{row("½ cup (heaping) fresh or frozen wild blueberries", "fresh", "cup", .5, "heaping")}, CleanOptions{})
+	if len(fixes) != 1 || fixes[0].After == nil || fixes[0].After.Food != "fresh or frozen wild blueberries" {
+		t.Errorf("fixes = %+v", fixes)
+	}
+}
