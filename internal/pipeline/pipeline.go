@@ -203,9 +203,12 @@ func (s *Service) importEntry(ctx context.Context, tc *tandoor.Client, sid *int6
 // importCore is the shared parse -> filter -> enrich -> create -> image -> book flow.
 func (s *Service) importCore(ctx context.Context, tc *tandoor.Client, it *store.Item, rules []*store.FilterRule, opts enrich.Options, bookName string) {
 	// the same page imported before (and still in Tandoor): no fetch, no parse
-	if id := s.existingByURL(ctx, tc, it.URL); id > 0 {
+	if id, name := s.existingByURL(ctx, tc, it.URL); id > 0 {
 		id64 := int64(id)
 		it.TandoorRecipeID = &id64
+		if it.Title == "" {
+			it.Title = name
+		}
 		s.finalize(it, store.StatusDuplicate, "already in Tandoor (same link)", "")
 		return
 	}
@@ -235,7 +238,7 @@ func (s *Service) importCore(ctx context.Context, tc *tandoor.Client, it *store.
 		s.finalize(it, store.StatusDuplicate, "already in Tandoor: "+rfs.Duplicates[0].Name, "")
 		return
 	}
-	if hit := existingByName(ctx, tc, rec.Name); hit != nil {
+	if hit := existingByName(ctx, tc, rec.Name, it.URL); hit != nil {
 		it.Title = rec.Name
 		id64 := int64(hit.ID)
 		it.TandoorRecipeID = &id64

@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"path"
 	"strings"
@@ -16,7 +17,7 @@ import (
 //  1. by link: an earlier Recipearr item for the same page (normalized URL) whose recipe Tandoor
 //     still has. Catches an ad-hoc import of something a feed already brought in.
 //  2. by name: Tandoor's search for the parsed name, compared after normalizing quotes, case and
-//     punctuation.
+//     punctuation, from the same site (its source_url's host).
 //
 // A duplicate records the existing recipe's id, so a caller (Mise's "Add from a URL") can open it.
 
@@ -80,13 +81,13 @@ func urlFrag(raw string) string {
 	return u.Hostname()
 }
 
-// existingByURL returns the id of a recipe Tandoor still has that an earlier item imported from
-// the same page, or 0.
-func (s *Service) existingByURL(ctx context.Context, tc *tandoor.Client, rawURL string) int {
+// existingByURL returns the id (and the earlier item's title) of a recipe Tandoor still has that an
+// earlier item imported from the same page, or 0.
+func (s *Service) existingByURL(ctx context.Context, tc *tandoor.Client, rawURL string) (int, string) {
 	want := NormURL(rawURL)
 	items, err := s.st.ItemsWithRecipeLike(urlFrag(rawURL))
 	if err != nil {
-		return 0
+		return 0, ""
 	}
 	checked := map[int64]bool{}
 	for _, it := range items {
@@ -95,17 +96,30 @@ func (s *Service) existingByURL(ctx context.Context, tc *tandoor.Client, rawURL 
 		}
 		checked[*it.TandoorRecipeID] = true
 		if ok, err := tc.RecipeExists(ctx, int(*it.TandoorRecipeID)); err == nil && ok {
-			return int(*it.TandoorRecipeID)
+			return int(*it.TandoorRecipeID), it.Title
 		}
 	}
-	return 0
+	return 0, ""
 }
 
-// existingByName returns a recipe whose name matches name once normalized, or nil.
-func existingByName(ctx context.Context, tc *tandoor.Client, name string) *tandoor.RecipeHit {
+// existingByName returns a recipe from the same site as rawURL whose name matches name once
+// normalized, or nil. Same site only: cookbooks hold many recipes with common names ("Twice Baked
+// Potatoes" in two books), and a web recipe of the same name is a different recipe.
+func existingByName(ctx context.Context, tc *tandoor.Client, name, rawURL string) *tandoor.RecipeHit {
 	want := NormName(name)
-	if want == "" {
+	site := siteOf(rawURL)
+	if want == "" || site == "" {
 		return nil
+	}
+	sameSite := func(id int) bool {
+		raw, err := tc.GetRecipeRaw(ctx, id)
+		if err != nil {
+			return false
+		}
+		var r struct {
+			SourceURL string `json:"source_url"`
+		}
+		return json.Unmarshal(raw, &r) == nil && siteOf(r.SourceURL) == site
 	}
 	// Tandoor's search is a substring match on the name, so "Mama's" won't find "Mama’s": after the
 	// whole name, try its longest stretch of plain words.
@@ -119,12 +133,21 @@ func existingByName(ctx context.Context, tc *tandoor.Client, name string) *tando
 			return nil
 		}
 		for i := range hits {
-			if NormName(hits[i].Name) == want {
+			if NormName(hits[i].Name) == want && sameSite(hits[i].ID) {
 				return &hits[i]
 			}
 		}
 	}
 	return nil
+}
+
+// siteOf is a link's host without www ("" when it has none: epub://, empty).
+func siteOf(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	return strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
 }
 
 // longestPlainRun is the longest part of s made of letters, digits and spaces only (trimmed).

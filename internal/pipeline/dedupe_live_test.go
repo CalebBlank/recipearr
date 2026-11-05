@@ -37,19 +37,24 @@ func TestDedupe_Live(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
-	if got := svc.existingByURL(ctx, tc, rurl+"?utm_source=rss#recipe"); int64(got) != id {
+	if got, _ := svc.existingByURL(ctx, tc, rurl+"?utm_source=rss#recipe"); int64(got) != id {
 		t.Errorf("existingByURL(same link) = %d, want %d", got, id)
 	}
-	if got := svc.existingByURL(ctx, tc, "https://www.example.org/deleted-recipe"); got != 0 {
+	if got, _ := svc.existingByURL(ctx, tc, "https://www.example.org/deleted-recipe"); got != 0 {
 		t.Errorf("existingByURL(deleted recipe) = %d, want 0", got)
 	}
-	if got := svc.existingByURL(ctx, tc, "https://example.org/never-seen/"); got != 0 {
+	if got, _ := svc.existingByURL(ctx, tc, "https://example.org/never-seen/"); got != 0 {
 		t.Errorf("existingByURL(new link) = %d, want 0", got)
 	}
-	if hit := existingByName(ctx, tc, rname); hit == nil || int64(hit.ID) != id {
-		t.Errorf("existingByName(%q) = %+v, want id %d", rname, hit, id)
+	// same site, another page of it: the name decides
+	if hit := existingByName(ctx, tc, rname, rurl+"-v2"); hit == nil || int64(hit.ID) != id {
+		t.Errorf("existingByName(%q, same site) = %+v, want id %d", rname, hit, id)
 	}
-	if hit := existingByName(ctx, tc, "Zz No Such Recipe Qq"); hit != nil {
+	// another site with the same name: a different recipe
+	if hit := existingByName(ctx, tc, rname, "https://another-site.example/chili/"); hit != nil {
+		t.Errorf("existingByName(%q, other site) = %+v, want nil", rname, hit)
+	}
+	if hit := existingByName(ctx, tc, "Zz No Such Recipe Qq", rurl); hit != nil {
 		t.Errorf("existingByName(nonsense) = %+v, want nil", hit)
 	}
 }
