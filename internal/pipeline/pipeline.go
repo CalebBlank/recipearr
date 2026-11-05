@@ -202,6 +202,13 @@ func (s *Service) importEntry(ctx context.Context, tc *tandoor.Client, sid *int6
 
 // importCore is the shared parse -> filter -> enrich -> create -> image -> book flow.
 func (s *Service) importCore(ctx context.Context, tc *tandoor.Client, it *store.Item, rules []*store.FilterRule, opts enrich.Options, bookName string) {
+	// the same page imported before (and still in Tandoor): no fetch, no parse
+	if id := s.existingByURL(ctx, tc, it.URL); id > 0 {
+		id64 := int64(id)
+		it.TandoorRecipeID = &id64
+		s.finalize(it, store.StatusDuplicate, "already in Tandoor (same link)", "")
+		return
+	}
 	rfs, msg := parseRecipe(ctx, tc, it.URL)
 	if rfs == nil || rfs.Recipe == nil {
 		s.finalize(it, store.StatusFailed, "", orDefault(msg, "could not parse recipe"))
@@ -210,16 +217,29 @@ func (s *Service) importCore(ctx context.Context, tc *tandoor.Client, it *store.
 	rec := rfs.Recipe
 	it.RawTags = tagsCSV(rec.Keywords)
 
+	// a story, a roundup or a slideshow: the page has no recipe on it (Tandoor parses no name)
+	if strings.TrimSpace(rec.Name) == "" {
+		s.finalize(it, store.StatusFilteredOut, "no recipe on the page", "")
+		return
+	}
+
 	if r := filter.Evaluate(rules, subjectFromRecipe(rec)); !r.Keep {
-		if rec.Name != "" {
-			it.Title = rec.Name
-		}
+		it.Title = rec.Name
 		s.finalize(it, store.StatusFilteredOut, r.Reason, "")
 		return
 	}
 	if len(rfs.Duplicates) > 0 {
 		it.Title = rec.Name
+		id64 := int64(rfs.Duplicates[0].ID)
+		it.TandoorRecipeID = &id64
 		s.finalize(it, store.StatusDuplicate, "already in Tandoor: "+rfs.Duplicates[0].Name, "")
+		return
+	}
+	if hit := existingByName(ctx, tc, rec.Name); hit != nil {
+		it.Title = rec.Name
+		id64 := int64(hit.ID)
+		it.TandoorRecipeID = &id64
+		s.finalize(it, store.StatusDuplicate, "already in Tandoor: "+hit.Name, "")
 		return
 	}
 

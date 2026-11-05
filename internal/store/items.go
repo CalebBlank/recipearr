@@ -90,6 +90,26 @@ func (st *Store) ListItems(status string, limit int) ([]*Item, error) {
 	return out, rows.Err()
 }
 
+// ItemsWithRecipeLike returns recent items that point at a Tandoor recipe (imported, or a duplicate
+// that recorded the existing recipe) and whose URL contains frag. The caller compares normalized
+// URLs exactly; frag only narrows the scan.
+func (st *Store) ItemsWithRecipeLike(frag string) ([]*Item, error) {
+	rows, err := st.db.Query(`SELECT `+itemCols+` FROM items WHERE tandoor_recipe_id IS NOT NULL AND url LIKE ? ORDER BY id DESC LIMIT 25`, "%"+frag+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Item
+	for rows.Next() {
+		it, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
 // StatusCounts returns a map of status -> count for the dashboard.
 func (st *Store) StatusCounts() (map[string]int, error) {
 	rows, err := st.db.Query(`SELECT status, COUNT(1) FROM items GROUP BY status`)

@@ -260,7 +260,45 @@ func (c *Client) PatchRecipeRaw(ctx context.Context, recipeID int, body []byte) 
 	return c.do(req)
 }
 
-// GetRecipeRaw returns the raw JSON of a recipe (used for verification and UI previews).
+// RecipeHit is one row of a recipe search.
+type RecipeHit struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// SearchRecipes runs Tandoor's recipe search (GET /api/recipe/?query=) and returns up to n hits.
+func (c *Client) SearchRecipes(ctx context.Context, query string, n int) ([]RecipeHit, error) {
+	q := url.Values{"query": {query}, "page_size": {strconv.Itoa(n)}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/recipe/?"+q.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	var page struct {
+		Results []RecipeHit `json:"results"`
+	}
+	if err := json.Unmarshal(body, &page); err != nil {
+		return nil, err
+	}
+	return page.Results, nil
+}
+
+// RecipeExists reports whether Tandoor still has recipe id (false on 404; an error otherwise).
+func (c *Client) RecipeExists(ctx context.Context, id int) (bool, error) {
+	_, err := c.GetRecipeRaw(ctx, id)
+	if err == nil {
+		return true, nil
+	}
+	if ae, ok := err.(*APIError); ok && ae.Status == http.StatusNotFound {
+		return false, nil
+	}
+	return false, err
+}
+
+// GetRecipeRawreturns the raw JSON of a recipe (used for verification and UI previews).
 func (c *Client) GetRecipeRaw(ctx context.Context, recipeID int) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		c.baseURL+"/api/recipe/"+strconv.Itoa(recipeID)+"/", nil)
